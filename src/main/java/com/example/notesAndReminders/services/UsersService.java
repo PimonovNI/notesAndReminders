@@ -49,7 +49,8 @@ public class UsersService {
                 throw new UsernameNotFoundException("This name don`t contain, check it again");
 
             User user = userOptional.get();
-            String token = jwtTokenProvider.createToken(user.getUsername(), user.getRole(), user.getEmail());
+            String token = jwtTokenProvider.createToken(user.getId(),
+                    user.getUsername(), user.getRole(), user.getEmail());
 
             Map<Object, Object> response = new HashMap<>();
             response.put("username", user.getUsername());
@@ -58,7 +59,7 @@ public class UsersService {
             return response;
         }
         catch (BadCredentialsException e) {
-            throw new BadCredentialsException("Invalid username or password");
+            throw new BadCredentialsException("Invalid password, check that");
         }
     }
 

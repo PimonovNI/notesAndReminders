@@ -1,6 +1,7 @@
 package com.example.notesAndReminders.security;
 
 import com.example.notesAndReminders.entities.enums.Role;
+import com.example.notesAndReminders.util.exceptions.IdNotFoundException;
 import com.example.notesAndReminders.util.exceptions.JWTAuthenticationException;
 import io.jsonwebtoken.*;
 import jakarta.annotation.PostConstruct;
@@ -36,9 +37,10 @@ public class JWTTokenProvider {
         secret = Base64.getEncoder().encodeToString(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String createToken(String username, Role role, String email) {
+    public String createToken(Long id, String username, Role role, String email) {
         Claims claims = Jwts.claims()
                 .setSubject(username);
+        claims.put("id", id);
         claims.put("email", email);
         claims.put("role", role);
 
@@ -53,8 +55,8 @@ public class JWTTokenProvider {
                 .compact();
     }
 
-    public Authentication getAuthentication(String token) {
-        UserDetails userDetails = userDetailsService.loadUserByUsername(getUsername(token));
+    public Authentication getAuthentication(String token) throws IdNotFoundException {
+        UserDetails userDetails = userDetailsService.loadUserById(getId(token));
         return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
     }
 
@@ -66,22 +68,26 @@ public class JWTTokenProvider {
         return null;
     }
 
-    public boolean validateToken(String token) {
+    public boolean validateToken(String token) throws JWTAuthenticationException {
         try {
             Jws<Claims> claims = Jwts.parser().setSigningKey(secret).parseClaimsJws(token);
 
-            if (claims.getBody().getExpiration().before(new Date())) {
-                return false;
-            }
-
-            return true;
+            return !claims.getBody().getExpiration().before(new Date());
         }
         catch (JwtException | IllegalArgumentException e) {
             throw new JWTAuthenticationException("JWT token is expired or invalid");
         }
     }
 
-    public String getUsername(String token) {
+    private Long getId(String token) {
+        return Jwts.parser()
+                .setSigningKey(secret)
+                .parseClaimsJws(token)
+                .getBody()
+                .get("id", Long.class);
+    }
+
+    private String getUsername(String token) {
         return Jwts.parser()
                 .setSigningKey(secret)
                 .parseClaimsJws(token)

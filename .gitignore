@@ -2,6 +2,8 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+.gitignore
+
 .idea
 *.iws
 *.iml
