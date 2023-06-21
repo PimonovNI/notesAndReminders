@@ -5,8 +5,8 @@ import com.example.notesAndReminders.entities.enums.Status;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -45,4 +45,8 @@ public class User {
     @Builder.Default
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     private List<Note> notes = new ArrayList<>();
+
+    @OneToOne(fetch = FetchType.LAZY, mappedBy = "user")
+    private ActivationKey activationKey;
+
 }

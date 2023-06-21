@@ -3,6 +3,7 @@ package com.example.notesAndReminders.security;
 import com.example.notesAndReminders.entities.User;
 import com.example.notesAndReminders.entities.enums.Status;
 import com.example.notesAndReminders.repositories.UsersRepository;
+import com.example.notesAndReminders.util.exceptions.EmailNotVerifiedException;
 import com.example.notesAndReminders.util.exceptions.IdNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -23,26 +24,28 @@ public class UserDetailsService implements org.springframework.security.core.use
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String username)
+            throws UsernameNotFoundException, EmailNotVerifiedException {
         Optional<User> userOptional = usersRepository.findByUsername(username);
 
         if (userOptional.isEmpty())
             throw new UsernameNotFoundException("This name don`t contain, check it again");
 
         if (userOptional.get().getStatus() == Status.VALIDATING)
-            throw new UsernameNotFoundException("Please, verify your email");
+            throw new EmailNotVerifiedException("Please, verify your email");
 
         return new UserDetails(userOptional.get());
     }
 
-    public UserDetails loadUserById(Long id) throws IdNotFoundException {
+    public UserDetails loadUserById(Long id)
+            throws IdNotFoundException, EmailNotVerifiedException {
         Optional<User> userOptional = usersRepository.findById(id);
 
         if (userOptional.isEmpty())
             throw new IdNotFoundException("User with this ID did not find, login again!");
 
         if (userOptional.get().getStatus() == Status.VALIDATING)
-            throw new IdNotFoundException("Please, verify your email");
+            throw new EmailNotVerifiedException("Please, verify your email");
 
         return new UserDetails(userOptional.get());
     }

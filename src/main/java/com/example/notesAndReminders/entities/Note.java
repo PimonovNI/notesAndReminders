@@ -32,8 +32,7 @@ public class Note {
     private TypeNote typeNote;
 
     @Builder.Default
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(referencedColumnName = "note_id")
+    @OneToOne(fetch = FetchType.LAZY, mappedBy = "note")
     private Schedule schedule = null;
 
 }

@@ -3,13 +3,14 @@ package com.example.notesAndReminders.controllers;
 import com.example.notesAndReminders.dtos.UserLoginDto;
 import com.example.notesAndReminders.dtos.UserRegDto;
 import com.example.notesAndReminders.services.UsersService;
+import com.example.notesAndReminders.util.exceptions.EmailNotVerifiedException;
+import com.example.notesAndReminders.util.exceptions.EmailVerifyingException;
 import com.example.notesAndReminders.util.exceptions.IdNotFoundException;
-import com.example.notesAndReminders.util.responses.LoginFailedResponse;
 import com.example.notesAndReminders.util.exceptions.ValidationLocalException;
+import com.example.notesAndReminders.util.responses.LoginFailedResponse;
 import com.example.notesAndReminders.util.responses.ValidateFailedResponse;
 import com.example.notesAndReminders.util.validators.UsersValidator;
 import jakarta.validation.Valid;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +26,6 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@Slf4j
 public class AuthController {
 
     private final UsersService usersService;
@@ -38,9 +38,17 @@ public class AuthController {
         this.usersValidator = usersValidator;
     }
 
+    @GetMapping("activation/{code}")
+    public ResponseEntity<HttpStatus> activation(@PathVariable("code") String code)
+            throws EmailVerifyingException {
+
+        usersService.verifyUserEmail(code);
+        return ResponseEntity.ok(HttpStatus.OK);
+    }
+
     @PostMapping()
     public ResponseEntity<Map<Object, Object>> login(@RequestBody @Valid UserLoginDto dto, BindingResult bindingResult)
-            throws IdNotFoundException, UsernameNotFoundException, BadCredentialsException, ValidationLocalException {
+            throws AuthenticationException, ValidationLocalException {
         if (bindingResult.hasErrors()) {
             throw new ValidationLocalException("Failed validation due to incorrect data", buildValidateError(bindingResult));
         }
@@ -61,7 +69,8 @@ public class AuthController {
         return ResponseEntity.ok(HttpStatus.OK);
     }
 
-    @ExceptionHandler({IdNotFoundException.class, UsernameNotFoundException.class, BadCredentialsException.class})
+    @ExceptionHandler({IdNotFoundException.class, UsernameNotFoundException.class, BadCredentialsException.class,
+            EmailNotVerifiedException.class, EmailVerifyingException.class})
     private ResponseEntity<LoginFailedResponse> authException(AuthenticationException e) {
 
         LoginFailedResponse response = new LoginFailedResponse(

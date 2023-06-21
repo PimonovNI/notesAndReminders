@@ -2,11 +2,14 @@ package com.example.notesAndReminders.services;
 
 import com.example.notesAndReminders.dtos.UserLoginDto;
 import com.example.notesAndReminders.dtos.UserRegDto;
+import com.example.notesAndReminders.entities.ActivationKey;
 import com.example.notesAndReminders.entities.User;
 import com.example.notesAndReminders.entities.enums.Role;
 import com.example.notesAndReminders.entities.enums.Status;
+import com.example.notesAndReminders.repositories.ActivationKeysRepositories;
 import com.example.notesAndReminders.repositories.UsersRepository;
 import com.example.notesAndReminders.security.JWTTokenProvider;
+import com.example.notesAndReminders.util.exceptions.EmailVerifyingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -19,12 +22,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
 public class UsersService {
 
     private final UsersRepository usersRepository;
+
+    private final ActivationKeysRepositories activationKeysRepositories;
 
     private final JWTTokenProvider jwtTokenProvider;
 
@@ -33,8 +39,9 @@ public class UsersService {
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public UsersService(UsersRepository usersRepository, JWTTokenProvider jwtTokenProvider, AuthenticationManager authenticationManager, PasswordEncoder passwordEncoder) {
+    public UsersService(UsersRepository usersRepository, ActivationKeysRepositories activationKeysRepositories, JWTTokenProvider jwtTokenProvider, AuthenticationManager authenticationManager, PasswordEncoder passwordEncoder) {
         this.usersRepository = usersRepository;
+        this.activationKeysRepositories = activationKeysRepositories;
         this.jwtTokenProvider = jwtTokenProvider;
         this.authenticationManager = authenticationManager;
         this.passwordEncoder = passwordEncoder;
@@ -67,6 +74,26 @@ public class UsersService {
     public void registration(UserRegDto dto) {
         User user = mapFrom(dto);
         usersRepository.save(user);
+
+        String activationCode = UUID.randomUUID().toString();
+        ActivationKey key = ActivationKey.builder()
+                .user(user)
+                .activationCode(activationCode)
+                .build();
+        activationKeysRepositories.save(key);
+    }
+
+    @Transactional
+    public void verifyUserEmail(String code) throws EmailVerifyingException {
+        Optional<ActivationKey> activationKeyOptional = activationKeysRepositories.findByActivationCode(code);
+
+        if (activationKeyOptional.isEmpty())
+            throw new EmailVerifyingException("It is illegal activation code. Reregistration, please");
+
+        ActivationKey activationKey = activationKeyOptional.get();
+
+        activationKeysRepositories.deleteById(activationKey.getId());
+        usersRepository.updateStatus(activationKey.getUser().getId(), Status.ACTIVE);
     }
 
     private User mapFrom(UserRegDto o) {
@@ -76,7 +103,7 @@ public class UsersService {
                 .email(o.getEmail())
                 .timeZone(o.getTimeZone())
                 .role(Role.USER)
-                .status(Status.ACTIVE)
+                .status(Status.VALIDATING)
                 .build();
     }
 }
