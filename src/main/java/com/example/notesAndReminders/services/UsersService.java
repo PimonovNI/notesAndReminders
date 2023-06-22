@@ -9,6 +9,7 @@ import com.example.notesAndReminders.entities.enums.Status;
 import com.example.notesAndReminders.repositories.ActivationKeysRepositories;
 import com.example.notesAndReminders.repositories.UsersRepository;
 import com.example.notesAndReminders.security.JWTTokenProvider;
+import com.example.notesAndReminders.util.MailUtils;
 import com.example.notesAndReminders.util.exceptions.EmailVerifyingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -32,6 +33,8 @@ public class UsersService {
 
     private final ActivationKeysRepositories activationKeysRepositories;
 
+    private final MailSenderService mailSenderService;
+
     private final JWTTokenProvider jwtTokenProvider;
 
     private final AuthenticationManager authenticationManager;
@@ -39,9 +42,10 @@ public class UsersService {
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public UsersService(UsersRepository usersRepository, ActivationKeysRepositories activationKeysRepositories, JWTTokenProvider jwtTokenProvider, AuthenticationManager authenticationManager, PasswordEncoder passwordEncoder) {
+    public UsersService(UsersRepository usersRepository, ActivationKeysRepositories activationKeysRepositories, MailSenderService mailSenderService, JWTTokenProvider jwtTokenProvider, AuthenticationManager authenticationManager, PasswordEncoder passwordEncoder) {
         this.usersRepository = usersRepository;
         this.activationKeysRepositories = activationKeysRepositories;
+        this.mailSenderService = mailSenderService;
         this.jwtTokenProvider = jwtTokenProvider;
         this.authenticationManager = authenticationManager;
         this.passwordEncoder = passwordEncoder;
@@ -81,6 +85,12 @@ public class UsersService {
                 .activationCode(activationCode)
                 .build();
         activationKeysRepositories.save(key);
+
+        mailSenderService.send(
+                dto.getEmail(),
+                MailUtils.SUBJECT_FOR_REGISTRATION,
+                MailUtils.getRegistrationText(dto.getUsername(), activationCode)
+        );
     }
 
     @Transactional
