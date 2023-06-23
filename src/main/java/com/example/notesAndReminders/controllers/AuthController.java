@@ -3,6 +3,7 @@ package com.example.notesAndReminders.controllers;
 import com.example.notesAndReminders.dtos.UserLoginDto;
 import com.example.notesAndReminders.dtos.UserRegDto;
 import com.example.notesAndReminders.services.UsersService;
+import com.example.notesAndReminders.util.ResponseUtils;
 import com.example.notesAndReminders.util.exceptions.EmailNotVerifiedException;
 import com.example.notesAndReminders.util.exceptions.EmailVerifyingException;
 import com.example.notesAndReminders.util.exceptions.IdNotFoundException;
@@ -50,7 +51,7 @@ public class AuthController {
     public ResponseEntity<Map<Object, Object>> login(@RequestBody @Valid UserLoginDto dto, BindingResult bindingResult)
             throws AuthenticationException, ValidationLocalException {
         if (bindingResult.hasErrors()) {
-            throw new ValidationLocalException("Failed validation due to incorrect data", buildValidateError(bindingResult));
+            throw new ValidationLocalException("Failed validation due to incorrect data", ResponseUtils.buildValidateError(bindingResult));
         }
 
         Map<Object, Object> response = usersService.login(dto);
@@ -62,7 +63,7 @@ public class AuthController {
             throws ValidationLocalException{
         usersValidator.validate(dto, bindingResult);
         if (bindingResult.hasErrors()) {
-            throw new ValidationLocalException("Failed validation due to incorrect data", buildValidateError(bindingResult));
+            throw new ValidationLocalException("Failed validation due to incorrect data", ResponseUtils.buildValidateError(bindingResult));
         }
 
         usersService.registration(dto);
@@ -93,19 +94,5 @@ public class AuthController {
         );
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-    }
-
-    private Map<String, List<String>> buildValidateError(Errors errors) {
-        Map<String, List<String>> info = new HashMap<>();
-
-        errors.getFieldErrors()
-                .forEach(fieldError -> {
-                    if (info.containsKey(fieldError.getField()))
-                        info.get(fieldError.getField()).add(fieldError.getDefaultMessage());
-                    else
-                        info.put(fieldError.getField(), new ArrayList<>(Collections.singletonList(fieldError.getDefaultMessage())));
-                });
-
-        return info;
     }
 }

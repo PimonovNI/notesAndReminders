@@ -28,6 +28,7 @@ public class Note {
     @Column(name = "content", nullable = false)
     private String content;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 16)
     private TypeNote typeNote;
 
