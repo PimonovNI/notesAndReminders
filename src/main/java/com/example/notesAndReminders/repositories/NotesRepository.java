@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface NotesRepository extends JpaRepository<Note, Long> {
+public interface NotesRepository extends JpaRepository<Note, Long>, CustomNotesRepository {
 
     @Modifying
     @Query("DELETE FROM Note n WHERE n.id = :id")

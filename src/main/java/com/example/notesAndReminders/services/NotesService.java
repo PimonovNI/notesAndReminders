@@ -1,8 +1,6 @@
 package com.example.notesAndReminders.services;
 
-import com.example.notesAndReminders.dtos.NoteCreateDto;
-import com.example.notesAndReminders.dtos.NoteReminderDto;
-import com.example.notesAndReminders.dtos.ScheduleCreateDto;
+import com.example.notesAndReminders.dtos.*;
 import com.example.notesAndReminders.entities.Note;
 import com.example.notesAndReminders.entities.Schedule;
 import com.example.notesAndReminders.entities.enums.TypeNote;
@@ -26,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.UUID;
+import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -49,6 +49,19 @@ public class NotesService {
         this.usersRepository = usersRepository;
         this.schedulesRepository = schedulesRepository;
         this.scheduler = scheduler;
+    }
+
+    public NoteReadDto findById (Long id) {
+        Note note = notesRepository.findByIdWithSchedule(id)
+                .orElseThrow(IllegalArgumentException::new);
+        return mapFrom(note);
+    }
+
+    public List<NoteReadDto> findAllByUserId(Long userId) {
+        return notesRepository.findAllByUserIdWithSchedule(userId)
+                .stream()
+                .map(this::mapFrom)
+                .toList();
     }
 
     @Transactional
@@ -108,6 +121,28 @@ public class NotesService {
                 .repeatCount(dto.getRepeatCount() == null ? 1 : dto.getRepeatCount())
                 .repeatInterval(dto.getRepeatInterval() == null ? 60_000L : dto.getRepeatInterval())
                 .build();
+    }
+
+    private NoteReadDto mapFrom(Note entity) {
+        return new NoteReadDto(
+                entity.getId(),
+                entity.getTitle(),
+                entity.getContent(),
+                entity.getTypeNote().toString(),
+                mapFrom(entity.getSchedule())
+        );
+    }
+
+    private ScheduleReadDto mapFrom(Schedule entity) {
+        if (entity == null)
+            return null;
+        return new ScheduleReadDto(
+                entity.getId(),
+                new Date(entity.getStartAt() - 2 * hostTimeZoneDiff).toString(),
+                entity.getIsReminded(),
+                entity.getRepeatCount(),
+                entity.getRepeatInterval()
+        );
     }
 
 }

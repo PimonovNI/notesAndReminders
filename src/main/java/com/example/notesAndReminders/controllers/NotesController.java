@@ -1,6 +1,7 @@
 package com.example.notesAndReminders.controllers;
 
 import com.example.notesAndReminders.dtos.NoteCreateDto;
+import com.example.notesAndReminders.dtos.NoteReadDto;
 import com.example.notesAndReminders.security.UserDetails;
 import com.example.notesAndReminders.services.NotesService;
 import com.example.notesAndReminders.util.ResponseUtils;
@@ -16,6 +17,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/notes")
@@ -29,6 +31,11 @@ public class NotesController {
     public NotesController(NotesService notesService, NotesValidator notesValidator) {
         this.notesService = notesService;
         this.notesValidator = notesValidator;
+    }
+
+    @GetMapping("")
+    public ResponseEntity<List<NoteReadDto>> showAllNotes(){
+        return new ResponseEntity<>(notesService.findAllByUserId(getUserId()), HttpStatus.OK);
     }
 
     @PostMapping("")
