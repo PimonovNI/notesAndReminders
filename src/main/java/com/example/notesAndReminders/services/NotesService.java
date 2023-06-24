@@ -12,10 +12,7 @@ import com.example.notesAndReminders.scheduler.ScheduleUtils;
 import com.example.notesAndReminders.scheduler.TimerInfo;
 import com.example.notesAndReminders.security.UserDetails;
 import com.example.notesAndReminders.util.exceptions.SchedulerCreateException;
-import org.quartz.JobDetail;
-import org.quartz.Scheduler;
-import org.quartz.SchedulerException;
-import org.quartz.Trigger;
+import org.quartz.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -81,30 +78,79 @@ public class NotesService {
             Schedule schedule = mapFrom(dto.getSchedule());
             schedule.setNote(note);
             schedule.setStartAt(
-                    LocalDateTime.parse(dto.getSchedule().getStartAt(), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                            .atZone(ZoneId.of(user.getUser().getTimeZone()))
-                            .toEpochSecond() * 1000L
+                    calcStartAt(dto.getSchedule().getStartAt(), user.getUser().getTimeZone())
             );
 
             schedulesRepository.save(schedule);
 
-            TimerInfo timerInfo = ScheduleUtils
-                    .builderTimerInfo(schedule.getId(), user.getUsername(),
-                            new NoteReminderDto(note.getId(), note.getTitle(), note.getContent()))
-                    .startAt(schedule.getStartAt(), hostTimeZoneDiff)
-                    .sendMail(schedule.getIsReminded(), user.getUser().getEmail())
-                    .repeatable(schedule.getRepeatCount(), schedule.getRepeatInterval())
-                    .build();
-
-            JobDetail jobDetail = ScheduleUtils.buildJobDetails(MailJob.class, schedule.getId(), timerInfo);
-            Trigger trigger = ScheduleUtils.buildTrigger(schedule.getId(), timerInfo);
-
-            try {
-                scheduler.scheduleJob(jobDetail, trigger);
-            } catch (SchedulerException e) {
-                throw new SchedulerCreateException(e.getMessage(), e);
-            }
+            createSchedule(user, schedule, note);
         }
+    }
+
+    @Transactional
+    public void update(Long id, NoteCreateDto dto, UserDetails user) throws SchedulerException {
+        Note note = notesRepository.findByIdWithSchedule(id)
+                .orElseThrow(IllegalArgumentException::new);
+        Schedule schedule = note.getSchedule();
+        note.setTitle(dto.getTitle());
+        note.setContent(note.getContent());
+        note.setTypeNote(dto.getCategory() == null ? TypeNote.DEFAULT : TypeNote.valueOf(dto.getCategory()));
+        if (note.getSchedule() != null){
+            scheduler.deleteJob(new JobKey(note.getSchedule().getId()));
+        }
+
+        if (dto.getSchedule() == null){
+            note.setSchedule(null);
+        }
+        else {
+            schedule.setStartAt(calcStartAt(dto.getSchedule().getStartAt(), user.getUser().getTimeZone()));
+            schedule.setIsReminded(dto.getSchedule().getIsReminded() != null && dto.getSchedule().getIsReminded());
+            schedule.setRepeatCount(dto.getSchedule().getRepeatCount() == null ? 1
+                    : dto.getSchedule().getRepeatCount());
+            schedule.setRepeatInterval(dto.getSchedule().getRepeatInterval() == null ? 60_000L
+                    : dto.getSchedule().getRepeatInterval());
+
+            schedulesRepository.save(schedule);
+        }
+
+        notesRepository.save(note);
+
+        if (note.getSchedule() != null) {
+            createSchedule(user, schedule, note);
+        }
+    }
+
+    @Transactional
+    public void delete(Long id) throws SchedulerException {
+        Note note = notesRepository.findByIdWithSchedule(id)
+                .orElseThrow(IllegalArgumentException::new);
+        scheduler.deleteJob(new JobKey(note.getSchedule().getId()));
+        notesRepository.deleteByIdQuickly(id);
+    }
+
+    private void createSchedule(UserDetails user, Schedule schedule, Note note) {
+        TimerInfo timerInfo = ScheduleUtils
+                .builderTimerInfo(schedule.getId(), user.getUsername(),
+                        new NoteReminderDto(note.getId(), note.getTitle(), note.getContent()))
+                .startAt(schedule.getStartAt(), hostTimeZoneDiff)
+                .sendMail(schedule.getIsReminded(), user.getUser().getEmail())
+                .repeatable(schedule.getRepeatCount(), schedule.getRepeatInterval())
+                .build();
+
+        JobDetail jobDetail = ScheduleUtils.buildJobDetails(MailJob.class, schedule.getId(), timerInfo);
+        Trigger trigger = ScheduleUtils.buildTrigger(schedule.getId(), timerInfo);
+
+        try {
+            scheduler.scheduleJob(jobDetail, trigger);
+        } catch (SchedulerException e) {
+            throw new SchedulerCreateException(e.getMessage(), e);
+        }
+    }
+
+    private long calcStartAt(String date, String timeZone) {
+        return LocalDateTime.parse(date, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                .atZone(ZoneId.of(timeZone))
+                .toEpochSecond() * 1000L;
     }
 
     private Note mapFrom(NoteCreateDto dto) {
