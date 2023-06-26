@@ -1,6 +1,22 @@
 # Notes and Reminders
 
-REST application for save notes and send reminders on your own email
+REST application where you can create your own notes with a reminder function. That is, reminder letters with 
+information about your note will be sent to the specified mail. The frequency of letters, the interval between 
+them and much more, can be configured manually
+
+# Implementation Details
+
+The project was created using the **Spring Framework**. The following technologies were used: *Spring Boot*, *Spring Web*, 
+*Spring Security* (also used *Json Web Token* for authentication), *Spring Data JPA (Hibernate)*, *Java Mail Sender*.
+*Quartz Scheduler* was used for planed mail send and updating database. Additionally, *Spring Validator*, 
+*Hibernate Validator* and *Lombok* were used. *JUnit 5*, *Mockito* were used for testing.
+
+After the *login request*, you get a JWT token (if registered), and after adding this JWT token to the Request Headers, 
+you can access all the part of the REST application
+
+*PostgreSQL* was taken as RDBMS. The database has the following form:
+
+![image](https://drive.google.com/uc?export=view&id=1e4VfPgLKYNwYLDySznnIiOwrWgqKoND-)
 
 # Requests
 
@@ -71,3 +87,15 @@ Note with id `note_id` will be deleted.
 `GET:` `/api/v1/notes`
 
 Will display all created notes of the user whose JWT Token was used in the request.
+
+# How to Build
+
+* Download the project
+* Fill in empty fields in the `application.properties` file; These are data about the database and the mailing domain
+* Build maven using `mvnw.cmd` or `mvnw`
+* Run the project
+
+# Pre Requisites
+
+* Local server for the *PostgreSQL DBMS*
+* Local domain for sending e-mails
